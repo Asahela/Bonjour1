@@ -71,7 +71,7 @@ const keywords = std.StaticStringMap(TokenType).initComptime(.{
     .{ .THEN, "alors" },
     .{ .ELSE, "sinon" },
     .{ .END_IF, "finsi" },
-    .{ .WHILE, "tanque" },
+    .{ .WHILE, "tantque" },
     .{ .FOR, "pour" },
     .{ .HIGH, "haut" },
     .{ .LOW, "bas" },
