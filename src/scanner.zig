@@ -269,6 +269,17 @@ pub const Scanner = struct {
 
 const testing = std.testing;
 
+test "Scanner: void input" {
+    const allocator = testing.allocator;
+    var scanner = Scanner.init(allocator, "");
+    defer scanner.deinit();
+
+    const tokens = try scanner.scanTokens();
+
+    try testing.expectEqual(@as(usize, 1), tokens.len);
+    try testing.expectEqual(TokenType.EOF, tokens[0].token_type);
+}
+
 test "Scanner: simple tokens" {
     const allocator = testing.allocator;
     var scanner = Scanner.init(allocator, ",;.-+*=[]()");

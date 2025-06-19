@@ -15,3 +15,7 @@ pub fn report(line: u16, where: []const u8, message: []const []const u8) !void {
 
     try stderr.print("\x1b[1;31m[ligne {d}] Erreur à '{s}' : {s}\x1b[0m\n", .{ line, where, err_message });
 }
+
+test "Test suite" {
+    _ = @import("scanner.zig");
+}
