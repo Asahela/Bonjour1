@@ -257,7 +257,7 @@ pub const Scanner = struct {
 
         if (self.isAtEnd()) {
             try makeError(self.line, &[_]u8{self.source[self.current - 1]}, &[_][]const u8{"Chaine non terminée."});
-            return;
+            return error.ScanError;
         }
 
         _ = self.advance();
@@ -412,5 +412,70 @@ test "Scanner: character literal" {
 
             try testing.expectError(error.ScanError, scanner.scanTokens());
         }
+    }
+}
+
+test "Scanner: string literal" {
+    const allocator = testing.allocator;
+
+    {
+        const test_cases = [_]struct {
+            source: []const u8,
+            expected_type: TokenType,
+            expected_literal_value: []const u8,
+        }{
+            .{ .source = "\"\"", .expected_type = TokenType.STRING, .expected_literal_value = "" },
+            .{ .source = "\"a\"", .expected_type = TokenType.STRING, .expected_literal_value = "a" },
+            .{ .source = "\"abcd\"", .expected_type = TokenType.STRING, .expected_literal_value = "abcd" },
+            .{ .source = "\"';,\"", .expected_type = TokenType.STRING, .expected_literal_value = "';," },
+        };
+
+        for (test_cases) |tc| {
+            var scanner = Scanner.init(allocator, tc.source);
+            defer scanner.deinit();
+
+            const tokens = try scanner.scanTokens();
+
+            try testing.expectEqual(TokenType.STRING, tokens[0].token_type);
+            try testing.expectEqualStrings(tc.expected_literal_value, tokens[0].literal.?.string);
+        }
+    }
+
+    {
+        var scanner = Scanner.init(allocator, "\"ab\"\"cd\"");
+        defer scanner.deinit();
+
+        const tokens = try scanner.scanTokens();
+
+        try testing.expectEqual(@as(usize, 3), tokens.len);
+        try testing.expectEqual(TokenType.STRING, tokens[0].token_type);
+        try testing.expectEqualStrings("ab", tokens[0].literal.?.string);
+        try testing.expectEqual(TokenType.STRING, tokens[1].token_type);
+        try testing.expectEqualStrings("cd", tokens[1].literal.?.string);
+    }
+
+    {
+        const source = "\"\nabcd\n\"";
+        const expected_literal_value =
+            \\
+            \\abcd
+            \\
+        ;
+
+        var scanner = Scanner.init(allocator, source);
+        defer scanner.deinit();
+
+        const tokens = try scanner.scanTokens();
+
+        try testing.expectEqual(TokenType.STRING, tokens[0].token_type);
+        try testing.expectEqualStrings(expected_literal_value, tokens[0].literal.?.string);
+    }
+
+    {
+        const source = "\"aeijoiefj";
+        var scanner = Scanner.init(allocator, source);
+        defer scanner.deinit();
+
+        try testing.expectError(error.ScanError, scanner.scanTokens());
     }
 }
