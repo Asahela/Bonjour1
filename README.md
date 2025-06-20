@@ -8,7 +8,7 @@ An interpreter for the pseudo-code grammar used at my university.
   * [Task list](#task-list)
   * [Contributing](#contributing)
 ## Installation
-1) Download and intall Zig from the official [Zig Programming Language](https://ziglang.org/learn/) page.
+1) Download and intall Zig from the official [Zig Programming Language](https://ziglang.org/) page.
 2) Clone this repository and build the project :
 ```bash
 git clone https://github.com/Asahela/Bonjour1.git
