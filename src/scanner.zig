@@ -178,6 +178,7 @@ pub const Scanner = struct {
             },
             '\'' => self.char(),
             '"' => self.string(),
+            '0'...'9' => self.number(),
             else => unreachable,
         };
     }
@@ -265,7 +266,36 @@ pub const Scanner = struct {
         const value = self.source[self.start + 1 .. self.current - 1];
         try self.addToken(.STRING, .{ .string = value });
     }
+
+    fn number(self: *Scanner) !void {
+        while (isNumber(self.peek()) and self.peek() != '.' and !self.isAtEnd()) _ = self.advance();
+
+        if (self.match('.')) {
+            if (self.isAtEnd()) {
+                try makeError(self.line, &[_]u8{self.source[self.current - 1]}, &[_][]const u8{"Réel invalide."});
+                return error.ScanError;
+            }
+
+            while (isNumber(self.peek()) and self.peek() != '.' and !self.isAtEnd()) _ = self.advance();
+
+            if (self.peek() == '.') {
+                try makeError(self.line, &[_]u8{self.source[self.current - 1]}, &[_][]const u8{"Réel invalide."});
+                return error.ScanError;
+            }
+
+            const value = try std.fmt.parseFloat(f64, self.source[self.start..self.current]);
+            try self.addToken(.FLOAT, .{ .float = value });
+            return;
+        }
+
+        const value = try std.fmt.parseInt(u64, self.source[self.start..self.current], 10);
+        try self.addToken(.INT, .{ .integer = value });
+    }
 };
+
+fn isNumber(c: u8) bool {
+    return (c >= '0' and c <= '9');
+}
 
 const testing = std.testing;
 
@@ -477,5 +507,68 @@ test "Scanner: string literal" {
         defer scanner.deinit();
 
         try testing.expectError(error.ScanError, scanner.scanTokens());
+    }
+}
+
+test "Scanner: integer literal" {
+    const allocator = testing.allocator;
+
+    {
+        const test_cases = [_]struct {
+            source: []const u8,
+            expected_type: TokenType,
+            expected_literal_value: u64,
+        }{
+            .{ .source = "0", .expected_type = TokenType.INT, .expected_literal_value = 0 },
+            .{ .source = "01", .expected_type = TokenType.INT, .expected_literal_value = 1 },
+            .{ .source = "69", .expected_type = TokenType.INT, .expected_literal_value = 69 },
+        };
+
+        for (test_cases) |tc| {
+            var scanner = Scanner.init(allocator, tc.source);
+            defer scanner.deinit();
+
+            const tokens = try scanner.scanTokens();
+
+            try testing.expectEqual(tc.expected_type, tokens[0].token_type);
+            try testing.expectEqual(tc.expected_literal_value, tokens[0].literal.?.integer);
+        }
+    }
+}
+
+test "Scanner: float literal" {
+    const allocator = testing.allocator;
+
+    {
+        const test_cases = [_]struct {
+            source: []const u8,
+            expected_type: TokenType,
+            expected_literal_value: f64,
+        }{
+            .{ .source = "1.1", .expected_type = TokenType.FLOAT, .expected_literal_value = 1.1 },
+            .{ .source = "22.0", .expected_type = TokenType.FLOAT, .expected_literal_value = 22.0 },
+            .{ .source = "69.69", .expected_type = TokenType.FLOAT, .expected_literal_value = 69.69 },
+        };
+
+        for (test_cases) |tc| {
+            var scanner = Scanner.init(allocator, tc.source);
+            defer scanner.deinit();
+
+            const tokens = try scanner.scanTokens();
+
+            try testing.expectEqual(tc.expected_type, tokens[0].token_type);
+            try testing.expectApproxEqAbs(tc.expected_literal_value, tokens[0].literal.?.float, 0.001);
+        }
+    }
+
+    {
+        const sources = [_][]const u8{ "999.", "999.99.9", "99.." };
+
+        for (sources) |source| {
+            var scanner = Scanner.init(allocator, source);
+            defer scanner.deinit();
+
+            try testing.expectError(error.ScanError, scanner.scanTokens());
+        }
     }
 }
